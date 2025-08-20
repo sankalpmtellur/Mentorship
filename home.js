@@ -1,122 +1,129 @@
+// Get mentee name from sessionStorage and display it
 document.addEventListener('DOMContentLoaded', function () {
-    const menteeForm = document.getElementById('menteeForm');
-    const container = document.querySelector('.container');
-    const menteeNameInput = document.getElementById('menteeName');
-
-    // Initialize page animations
-    function initAnimations() {
-        // Fade in the container
-        container.style.opacity = '0';
-        container.style.transition = 'opacity 0.6s ease';
-
-        setTimeout(() => {
-            container.style.opacity = '1';
-        }, 100);
-
-        // Animate form elements sequentially
-        const formElements = document.querySelectorAll('input, button');
-        formElements.forEach((element, index) => {
-            element.style.opacity = '0';
-            element.style.transform = 'translateY(15px)';
-            element.style.transition = 'all 0.5s ease';
-
-            setTimeout(() => {
-                element.style.opacity = '1';
-                element.style.transform = 'translateY(0)';
-            }, 300 + (index * 100));
-        });
+    const menteeName = sessionStorage.getItem('menteeName');
+    if (menteeName) {
+        document.getElementById('displayMenteeName').textContent = menteeName;
+    } else {
+        document.getElementById('displayMenteeName').textContent = "Mentee Name Not Provided";
     }
 
-    // Enhanced validation with better feedback
-    function showValidationError(input, message) {
-        // Remove any existing error message
-        const existingError = input.parentNode.querySelector('.error-message');
-        if (existingError) {
-            existingError.remove();
-        }
-
-        // Create error message
-        const errorElement = document.createElement('p');
-        errorElement.className = 'error-message';
-        errorElement.textContent = message;
-        errorElement.style.color = '#f72585';
-        errorElement.style.fontSize = '0.9rem';
-        errorElement.style.marginTop = '0.5rem';
-        errorElement.style.animation = 'shake 0.5s ease';
-
-        input.parentNode.appendChild(errorElement);
-
-        // Add shake animation to input
-        input.style.borderColor = '#f72585';
-        input.style.animation = 'shake 0.5s ease';
-
-        // Remove animation after it completes
-        setTimeout(() => {
-            input.style.animation = '';
-        }, 500);
-
-        // Focus on the input
-        input.focus();
-    }
-
-    // Remove validation error
-    function removeValidationError(input) {
-        const errorElement = input.parentNode.querySelector('.error-message');
-        if (errorElement) {
-            errorElement.remove();
-        }
-        input.style.borderColor = '#e2e8f0';
-    }
-
-    // Handle form submission
-    menteeForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const menteeName = menteeNameInput.value.trim();
-
-        if (!menteeName) {
-            showValidationError(menteeNameInput, 'Please enter the mentee name to continue');
-            return;
-        }
-
-        if (menteeName.length < 2) {
-            showValidationError(menteeNameInput, 'Name should be at least 2 characters long');
-            return;
-        }
-
-        // Add loading animation to button
-        const submitButton = menteeForm.querySelector('button[type="submit"]');
-        const originalButtonText = submitButton.innerHTML;
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting Session...';
-        submitButton.disabled = true;
-
-        // Store the mentee name for use in the next page
-        sessionStorage.setItem('menteeName', menteeName);
-
-        // Simulate a brief loading period before redirecting
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 1200);
-    });
-
-    // Real-time validation
-    menteeNameInput.addEventListener('input', function () {
-        if (this.value.trim()) {
-            removeValidationError(this);
-        }
-    });
-
-    // Add CSS for shake animation
-    const style = document.createElement('style');
-    style.textContent = `
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      75% { transform: translateX(5px); }
-    }
-  `;
-    document.head.appendChild(style);
-
-    // Initialize animations
-    initAnimations();
+    // Set current date
+    const now = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('sessionDate').textContent = now.toLocaleDateString('en-US', options);
 });
+
+// Show loading overlay
+function showLoading() {
+    document.getElementById('loadingOverlay').classList.add('active');
+}
+
+// Hide loading overlay
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+}
+
+// Generate PDF function
+function generatePDF() {
+    showLoading();
+
+    // Use setTimeout to allow the loading animation to show
+    setTimeout(() => {
+        try {
+            // Get all form values
+            const menteeName = document.getElementById('displayMenteeName').textContent;
+            const sessionDate = document.getElementById('sessionDate').textContent;
+            const answers = [];
+
+            // Get all answers
+            for (let i = 1; i <= 11; i++) {
+                const question = document.querySelector(`label[for="q${i}"]`).textContent;
+                const answer = document.getElementById(`q${i}`).value;
+                answers.push({ question, answer });
+            }
+
+            // Initialize jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Set document properties
+            doc.setProperties({
+                title: `Mentorship Session - ${menteeName}`,
+                subject: 'Mentorship Session Record',
+                author: 'MentorConnect',
+                keywords: 'mentorship, session, record',
+                creator: 'MentorConnect'
+            });
+
+            // Add header
+            doc.setFillColor(67, 97, 238);
+            doc.rect(0, 0, 220, 30, 'F');
+            doc.setFontSize(22);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Mentorship Session Report', 105, 17, { align: 'center' });
+
+            // Add mentee info
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Mentee: ${menteeName}`, 14, 45);
+            doc.text(`Session Date: ${sessionDate}`, 14, 55);
+
+            // Add content
+            let yPosition = 75;
+
+            answers.forEach((item, index) => {
+                // Check if we need a new page
+                if (yPosition > 250) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+
+                // Add question
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(58, 12, 163);
+                doc.text(`${index + 1}. ${item.question}`, 14, yPosition);
+
+                // Add answer
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+
+                // Split answer into lines that fit the page width
+                const splitAnswer = doc.splitTextToSize(item.answer || 'Not provided', 180);
+                doc.text(splitAnswer, 20, yPosition + 7);
+
+                // Update yPosition for next question
+                yPosition += 10 + (splitAnswer.length * 7);
+            });
+
+            // Add footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+                doc.text('Generated by MentorConnect', 105, 290, { align: 'center' });
+            }
+
+            // Save the PDF
+            doc.save(`Mentorship-Session-${menteeName}-${sessionDate.replace(/ /g, '-')}.pdf`);
+
+            hideLoading();
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+            hideLoading();
+        }
+    }, 500);
+}
+
+// Clear form function
+function clearForm() {
+    if (confirm('Are you sure you want to clear all form data?')) {
+        for (let i = 1; i <= 11; i++) {
+            document.getElementById(`q${i}`).value = '';
+        }
+    }
+}
